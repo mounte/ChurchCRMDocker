@@ -10,6 +10,8 @@ RUN echo "@edge http://dl-3.alpinelinux.org/alpine/edge/main" >> /etc/apk/reposi
     apk add --upgrade apk-tools@edge && \
     apk upgrade && \
     apk add --no-cache \
+    wget \
+    ca-certificates \
     curl \
     figlet \
     jq \
@@ -35,8 +37,21 @@ RUN echo "@edge http://dl-3.alpinelinux.org/alpine/edge/main" >> /etc/apk/reposi
     php7-phar \
     php7-session \
     php7-sqlite3 \
+    php7-zip \
     php7-xml && \
-    ln -s /usr/lib/apache2/mod_php7.so /usr/local/apache2/modules
+    ln -s /usr/lib/apache2/mod_php7.so /usr/local/apache2/modules && \
+    wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub && \
+    wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-2.25-r0.apk && \
+    wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-bin-2.25-r0.apk && \
+    wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.25-r0/glibc-i18n-2.25-r0.apk && \
+    apk add glibc-bin-2.25-r0.apk glibc-i18n-2.25-r0.apk glibc-2.25-r0.apk
+
+COPY ./locale.md /tmp/locale.md
+RUN cat /tmp/locale.md | xargs -i /usr/glibc-compat/bin/localedef -i {} -f UTF-8 {}.UTF-8
+
+# Set the lang, you can also specify it as as environment variable through docker-compose.yml
+ENV LANG=sv_SE.UTF-8 \
+    LANGUAGE=sv_SE.UTF-8
 
 # Copy Apache configurations
 COPY ./httpd.conf /usr/local/apache2/conf/httpd.conf
@@ -57,9 +72,11 @@ COPY ./configsetup /usr/local/bin
 WORKDIR /usr/local/apache2/htdocs/
 
 # Modify php.ini and set config setup to be an executable
-RUN sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 16M/g" /etc/php7/php.ini && \
-    sed -i "s/post_max_size = 8M/post_max_size = 32M/g" /etc/php7/php.ini && \
+RUN sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 128M/g" /etc/php7/php.ini && \
+    sed -i "s/post_max_size = 8M/post_max_size = 128M/g" /etc/php7/php.ini && \
     sed -i "s/zlib.output_compression = Off/zlib.output_compression = On/g" /etc/php7/php.ini && \
+    sed -i "s/max_execution_time = 30/max_execution_time = 300/g" /etc/php7/php.ini && \
+    sed -i "s/;session.save_path/session.save_path/g" /etc/php7/php.ini && \
     sed -i "s/;error_log = php_errors.log/error_log = \/proc\/self\/fd\/2/g" /etc/php7/php.ini && \
     sed -i '/;error_log = syslog/a error_log = \/usr\/local\/apache2\/logs\/php_errors.log' /etc/php7/php.ini && \
     chmod +x /usr/local/bin/configsetup

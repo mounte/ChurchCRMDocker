@@ -76,4 +76,4 @@ EOF
     rm -f "$tfile"
 fi
 
-exec /usr/bin/mysqld --user=mysql --console --datadir="$MYSQL_DATADIR"
+exec /usr/bin/mysqld --user=mysql --console --datadir="$MYSQL_DATADIR" --skip_networking=0 --port=3306 --bind-address=0.0.0.0
